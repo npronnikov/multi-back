@@ -1,4 +1,4 @@
-# Design: Add Version Button
+# Design: Add Version Button [design]
 
 ## Overview
 Добавляем кнопку "Version" в UI Todo List приложения и создаем backend endpoint `GET /api/version`. При клике на кнопку frontend делает запрос к backend и отображает полученную версию через alert/popup. Это простое и практичное решение, которое использует существующую архитектуру HTTP-общения между frontend и backend.
