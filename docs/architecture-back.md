@@ -1,6 +1,6 @@
 # Backend Architecture Overview
 
-**Repo alias:** back
+**Repo alias:** backend
 
 **Назначение:** Spring Boot REST API сервис для управления todo-задачами с JPA персистентностью.
 
