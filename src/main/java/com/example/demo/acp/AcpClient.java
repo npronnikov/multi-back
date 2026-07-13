@@ -214,8 +214,13 @@ public class AcpClient implements AutoCloseable {
         }
         if (node.has("error")) {
             JsonNode error = node.get("error");
+            String message = error.path("message").asString("");
+            String details = error.path("data").path("details").asString(null);
+            if (details != null && !details.isBlank()) {
+                message = message + " (" + details + ")";
+            }
             future.completeExceptionally(new AcpException(
-                    "ACP agent error " + error.path("code").asInt() + ": " + error.path("message").asString("")));
+                    "ACP agent error " + error.path("code").asInt() + ": " + message));
         } else {
             future.complete(node.get("result"));
         }

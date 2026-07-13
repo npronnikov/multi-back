@@ -24,6 +24,7 @@ import com.example.demo.acp.dto.RequestPermissionParams;
 import com.example.demo.acp.dto.RequestPermissionResult;
 import com.example.demo.acp.dto.SessionUpdate;
 import com.example.demo.acp.dto.SessionUpdateNotification;
+import com.example.demo.acp.dto.ToolCallEvent;
 import com.example.demo.acp.dto.WriteTextFileParams;
 import com.example.demo.acp.dto.WriteTextFileResult;
 
@@ -70,7 +71,7 @@ public class AcpAgent {
         try {
             PromptParams params = new PromptParams(sessionId, List.of(ContentBlock.text(text)));
             PromptResult result = client().call("session/prompt", params, PromptResult.class).join();
-            return new PromptTurnResult(accumulator.message(), result.stopReason());
+            return new PromptTurnResult(accumulator.message(), result.stopReason(), accumulator.thought(), accumulator.toolCalls());
         } finally {
             turns.remove(sessionId);
         }
@@ -83,15 +84,35 @@ public class AcpAgent {
 
     private AcpClient client() {
         AcpClient current = client;
-        if (current != null) {
+        if (current != null && current.isAlive()) {
             return current;
         }
         synchronized (this) {
-            if (client == null) {
+            if (client == null || !client.isAlive()) {
                 client = start();
             }
             return client;
         }
+    }
+
+    /** Whether the underlying agent process is currently running. */
+    public boolean isAlive() {
+        AcpClient current = client;
+        return current != null && current.isAlive();
+    }
+
+    /** Starts the agent process if it isn't already running. */
+    public void startProcess() {
+        client();
+    }
+
+    /** Kills the agent process, if running. The next call needing it will start a fresh one. */
+    public synchronized void stopProcess() {
+        AcpClient current = client;
+        if (current != null) {
+            current.close();
+        }
+        client = null;
     }
 
     private AcpClient start() {
@@ -166,29 +187,39 @@ public class AcpAgent {
     private void handleSessionUpdate(tools.jackson.databind.JsonNode paramsNode) {
         SessionUpdateNotification notification = objectMapper.treeToValue(paramsNode, SessionUpdateNotification.class);
         SessionUpdate update = notification.update();
+        TurnAccumulator accumulator = turns.get(notification.sessionId());
         if (update instanceof SessionUpdate.AgentMessageChunk chunk) {
-            TurnAccumulator accumulator = turns.get(notification.sessionId());
             if (accumulator != null && chunk.content() != null) {
                 accumulator.appendMessage(chunk.content().text());
             }
+        } else if (update instanceof SessionUpdate.AgentThoughtChunk chunk) {
+            if (accumulator != null && chunk.content() != null) {
+                accumulator.appendThought(chunk.content().text());
+            }
         } else if (update instanceof SessionUpdate.ToolCall toolCall) {
             log.info("ACP tool call [{}]: {} ({})", toolCall.status(), toolCall.title(), toolCall.kind());
+            if (accumulator != null) {
+                accumulator.addToolCall(new ToolCallEvent(
+                        toolCall.toolCallId(), toolCall.title(), toolCall.kind(), toolCall.status()));
+            }
         } else if (update instanceof SessionUpdate.ToolCallUpdate toolCallUpdate) {
             log.info("ACP tool call update: {} -> {}", toolCallUpdate.toolCallId(), toolCallUpdate.status());
+            if (accumulator != null) {
+                accumulator.updateToolCallStatus(toolCallUpdate.toolCallId(), toolCallUpdate.status());
+            }
         }
-        // agent_thought_chunk / user_message_chunk / plan / unknown kinds are not needed by the chat UI.
+        // user_message_chunk / plan / unknown kinds are not needed by the chat UI.
     }
 
     @PreDestroy
     public void shutdown() {
-        AcpClient current = client;
-        if (current != null) {
-            current.close();
-        }
+        stopProcess();
     }
 
     private static final class TurnAccumulator {
         private final StringBuilder message = new StringBuilder();
+        private final StringBuilder thought = new StringBuilder();
+        private final List<ToolCallEvent> toolCalls = new java.util.ArrayList<>();
 
         synchronized void appendMessage(String text) {
             if (text != null) {
@@ -196,8 +227,36 @@ public class AcpAgent {
             }
         }
 
+        synchronized void appendThought(String text) {
+            if (text != null) {
+                thought.append(text);
+            }
+        }
+
+        synchronized void addToolCall(ToolCallEvent event) {
+            toolCalls.add(event);
+        }
+
+        synchronized void updateToolCallStatus(String toolCallId, String status) {
+            for (int i = 0; i < toolCalls.size(); i++) {
+                ToolCallEvent existing = toolCalls.get(i);
+                if (existing.toolCallId().equals(toolCallId)) {
+                    toolCalls.set(i, new ToolCallEvent(existing.toolCallId(), existing.title(), existing.kind(), status));
+                    return;
+                }
+            }
+        }
+
         synchronized String message() {
             return message.toString();
+        }
+
+        synchronized String thought() {
+            return thought.toString();
+        }
+
+        synchronized List<ToolCallEvent> toolCalls() {
+            return List.copyOf(toolCalls);
         }
     }
 }

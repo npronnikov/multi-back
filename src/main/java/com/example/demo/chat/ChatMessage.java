@@ -38,6 +38,12 @@ public class ChatMessage {
     @Column(nullable = false)
     private String content;
 
+    @Lob
+    private String thought;
+
+    @Lob
+    private String toolCallsJson;
+
     @Column(nullable = false)
     private Instant createdAt;
 
