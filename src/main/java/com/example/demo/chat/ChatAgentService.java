@@ -15,10 +15,12 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 
 import com.example.demo.acp.AcpAgent;
-import com.example.demo.acp.AcpException;
 import com.example.demo.acp.AcpProperties;
 import com.example.demo.acp.PromptTurnResult;
+import com.example.demo.acp.RecoveredSession;
 import com.example.demo.acp.TurnListener;
+import com.example.demo.acp.dto.NewSessionResult;
+import com.example.demo.acp.dto.SessionModelState;
 import com.example.demo.acp.dto.ToolCallEvent;
 import com.example.demo.acp.dto.ToolCallStatusEvent;
 import com.example.demo.chat.dto.ChatMessageResponse;
@@ -55,9 +57,49 @@ public class ChatAgentService {
 
     public ChatSessionResponse createSession(String cwd) {
         String effectiveCwd = (cwd == null || cwd.isBlank()) ? acpProperties.workingDirectory() : cwd;
-        String acpSessionId = acpAgent.createSession(effectiveCwd);
-        ChatSession session = sessionRepository.save(new ChatSession(acpSessionId, effectiveCwd));
+        NewSessionResult result = acpAgent.createSession(effectiveCwd);
+        ChatSession session = new ChatSession(result.sessionId(), effectiveCwd);
+        applyModelState(session, result.models());
+        session = sessionRepository.save(session);
         return ChatSessionResponse.from(session);
+    }
+
+    /** Switches the model an existing session's turns will use going forward. */
+    public ChatSessionResponse setModel(Long sessionId, String modelId) {
+        ChatSession session = requireSession(sessionId);
+        try {
+            acpAgent.setModel(session.getAcpSessionId(), modelId);
+        } catch (RuntimeException e) {
+            if (!AcpAgent.isSessionNotFoundError(e)) {
+                throw agentError(e);
+            }
+            // The agent process was restarted since this session was created, so it no longer
+            // recognizes this id - recover it (reload from disk if possible) and retry once.
+            RecoveredSession recovered = acpAgent.recoverSession(session.getCwd(), session.getAcpSessionId());
+            session.setAcpSessionId(recovered.sessionId());
+            applyModelState(session, recovered.models());
+            try {
+                acpAgent.setModel(recovered.sessionId(), modelId);
+            } catch (RuntimeException retryFailure) {
+                throw agentError(retryFailure);
+            }
+        }
+        session.setCurrentModelId(modelId);
+        session = sessionRepository.save(session);
+        return ChatSessionResponse.from(session);
+    }
+
+    private ResponseStatusException agentError(RuntimeException e) {
+        String agentMessage = AcpAgent.agentErrorMessage(e);
+        return new ResponseStatusException(HttpStatus.BAD_GATEWAY, agentMessage != null ? agentMessage : "Failed to switch model", e);
+    }
+
+    private void applyModelState(ChatSession session, SessionModelState models) {
+        if (models == null) {
+            return;
+        }
+        session.setCurrentModelId(models.currentModelId());
+        session.setAvailableModelsJson(objectMapper.writeValueAsString(models.availableModels()));
     }
 
     public List<ChatSessionResponse> listSessions() {
@@ -117,15 +159,16 @@ public class ChatAgentService {
             try {
                 turnResult = acpAgent.prompt(session.getAcpSessionId(), text, listener);
             } catch (RuntimeException e) {
-                if (!isSessionNotFound(e)) {
+                if (!AcpAgent.isSessionNotFoundError(e)) {
                     throw e;
                 }
-                // The agent process was restarted since this session was created, so its
-                // in-memory session table no longer knows this id - recreate it and retry once.
-                String freshAcpSessionId = acpAgent.createSession(session.getCwd());
-                session.setAcpSessionId(freshAcpSessionId);
+                // The agent process was restarted since this session was created, so it no longer
+                // recognizes this id - recover it (reload from disk if possible) and retry once.
+                RecoveredSession recovered = acpAgent.recoverSession(session.getCwd(), session.getAcpSessionId());
+                session.setAcpSessionId(recovered.sessionId());
+                applyModelState(session, recovered.models());
                 session = sessionRepository.save(session);
-                turnResult = acpAgent.prompt(freshAcpSessionId, text, listener);
+                turnResult = acpAgent.prompt(recovered.sessionId(), text, listener);
             }
 
             ChatMessage assistantMessage = new ChatMessage(session, ChatRole.ASSISTANT, turnResult.text());
@@ -173,15 +216,6 @@ public class ChatAgentService {
     private ChatSession requireSession(Long sessionId) {
         return sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-    }
-
-    private static boolean isSessionNotFound(RuntimeException e) {
-        Throwable cause = e instanceof java.util.concurrent.CompletionException && e.getCause() != null ? e.getCause() : e;
-        if (!(cause instanceof AcpException)) {
-            return false;
-        }
-        String message = cause.getMessage();
-        return message != null && message.contains("Session not found");
     }
 
     @PreDestroy

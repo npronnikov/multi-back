@@ -17,6 +17,7 @@ import com.example.demo.chat.dto.ChatMessageResponse;
 import com.example.demo.chat.dto.ChatSessionResponse;
 import com.example.demo.chat.dto.CreateSessionRequest;
 import com.example.demo.chat.dto.SendMessageRequest;
+import com.example.demo.chat.dto.SetModelRequest;
 
 /**
  * Plain request/response REST API for chatting with the ACP coding agent - no WebSocket.
@@ -59,5 +60,10 @@ public class ChatController {
     @ResponseStatus(HttpStatus.ACCEPTED)
     public void cancel(@PathVariable Long id) {
         chatAgentService.cancel(id);
+    }
+
+    @PostMapping("/{id}/model")
+    public ChatSessionResponse setModel(@PathVariable Long id, @RequestBody SetModelRequest request) {
+        return chatAgentService.setModel(id, request.modelId());
     }
 }

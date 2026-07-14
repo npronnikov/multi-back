@@ -14,6 +14,8 @@ import org.springframework.stereotype.Component;
 import com.example.demo.acp.dto.ContentBlock;
 import com.example.demo.acp.dto.InitializeParams;
 import com.example.demo.acp.dto.InitializeResult;
+import com.example.demo.acp.dto.LoadSessionParams;
+import com.example.demo.acp.dto.LoadSessionResult;
 import com.example.demo.acp.dto.NewSessionParams;
 import com.example.demo.acp.dto.NewSessionResult;
 import com.example.demo.acp.dto.PromptParams;
@@ -24,6 +26,8 @@ import com.example.demo.acp.dto.RequestPermissionParams;
 import com.example.demo.acp.dto.RequestPermissionResult;
 import com.example.demo.acp.dto.SessionUpdate;
 import com.example.demo.acp.dto.SessionUpdateNotification;
+import com.example.demo.acp.dto.SetSessionModelParams;
+import com.example.demo.acp.dto.SetSessionModelResult;
 import com.example.demo.acp.dto.ToolCallEvent;
 import com.example.demo.acp.dto.WriteTextFileParams;
 import com.example.demo.acp.dto.WriteTextFileResult;
@@ -56,12 +60,36 @@ public class AcpAgent {
         this.objectMapper = objectMapper;
     }
 
-    /** Creates a new agent session rooted at the given working directory and returns its ACP session id. */
-    public String createSession(String cwd) {
-        NewSessionResult result = client()
+    /** Creates a new agent session rooted at the given working directory. */
+    public NewSessionResult createSession(String cwd) {
+        return client()
                 .call("session/new", new NewSessionParams(cwd, List.of()), NewSessionResult.class)
                 .join();
-        return result.sessionId();
+    }
+
+    /** Switches the model used by an existing session going forward. */
+    public void setModel(String sessionId, String modelId) {
+        client().call("session/set_model", new SetSessionModelParams(sessionId, modelId), SetSessionModelResult.class).join();
+    }
+
+    /**
+     * Recovers from the agent process no longer knowing {@code staleSessionId} - typically because
+     * it was restarted (e.g. via "kill agent") since the session was created. The agent persists
+     * sessions to disk under their original id, so the first move is to reload it there via
+     * {@code session/load}, which preserves its conversation history in the agent's own context;
+     * only if that also fails (session missing from disk too) is a brand new session created.
+     */
+    public RecoveredSession recoverSession(String cwd, String staleSessionId) {
+        try {
+            LoadSessionResult loaded = client()
+                    .call("session/load", new LoadSessionParams(cwd, List.of(), staleSessionId), LoadSessionResult.class)
+                    .join();
+            return new RecoveredSession(staleSessionId, loaded.models());
+        } catch (RuntimeException e) {
+            log.info("Could not reload ACP session {}, starting a new one instead: {}", staleSessionId, agentErrorMessage(e));
+            NewSessionResult created = createSession(cwd);
+            return new RecoveredSession(created.sessionId(), created.models());
+        }
     }
 
     /** Sends a text prompt and blocks until the agent finishes the turn, returning the assembled reply. */
@@ -90,6 +118,23 @@ public class AcpAgent {
     /** Requests cancellation of whatever prompt turn is currently in flight for this session. */
     public void cancel(String sessionId) {
         client().notify("session/cancel", Map.of("sessionId", sessionId));
+    }
+
+    /**
+     * Whether {@code e} (as thrown by {@link #prompt} or {@link #setModel}) means the agent
+     * process no longer knows this session id - typically because the process was restarted
+     * since the session was created. Callers should recover via {@link #recoverSession} and
+     * retry once.
+     */
+    public static boolean isSessionNotFoundError(RuntimeException e) {
+        String message = agentErrorMessage(e);
+        return message != null && message.contains("Session not found");
+    }
+
+    /** Unwraps {@code e} (as thrown by any {@code call()}) to the ACP agent's own error message, if any. */
+    public static String agentErrorMessage(RuntimeException e) {
+        Throwable cause = e instanceof java.util.concurrent.CompletionException && e.getCause() != null ? e.getCause() : e;
+        return cause instanceof AcpException ? cause.getMessage() : null;
     }
 
     private AcpClient client() {

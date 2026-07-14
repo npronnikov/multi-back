@@ -7,6 +7,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -25,6 +26,11 @@ public class ChatSession {
     private String acpSessionId;
 
     private String cwd;
+
+    private String currentModelId;
+
+    @Lob
+    private String availableModelsJson;
 
     @Column(nullable = false)
     private Instant createdAt;
