@@ -66,7 +66,17 @@ public class AcpAgent {
 
     /** Sends a text prompt and blocks until the agent finishes the turn, returning the assembled reply. */
     public PromptTurnResult prompt(String sessionId, String text) {
-        TurnAccumulator accumulator = new TurnAccumulator();
+        return prompt(sessionId, text, TurnListener.NOOP);
+    }
+
+    /**
+     * Sends a text prompt and blocks until the agent finishes the turn, returning the assembled
+     * reply. {@code listener} is invoked synchronously, on the ACP client's reader thread, as
+     * each thought/message chunk and tool call event arrives - callers that want to stream the
+     * turn out (e.g. over a chunked HTTP response) do their writing from there.
+     */
+    public PromptTurnResult prompt(String sessionId, String text, TurnListener listener) {
+        TurnAccumulator accumulator = new TurnAccumulator(listener);
         turns.put(sessionId, accumulator);
         try {
             PromptParams params = new PromptParams(sessionId, List.of(ContentBlock.text(text)));
@@ -220,21 +230,29 @@ public class AcpAgent {
         private final StringBuilder message = new StringBuilder();
         private final StringBuilder thought = new StringBuilder();
         private final List<ToolCallEvent> toolCalls = new java.util.ArrayList<>();
+        private final TurnListener listener;
+
+        TurnAccumulator(TurnListener listener) {
+            this.listener = listener;
+        }
 
         synchronized void appendMessage(String text) {
             if (text != null) {
                 message.append(text);
+                listener.onMessage(text);
             }
         }
 
         synchronized void appendThought(String text) {
             if (text != null) {
                 thought.append(text);
+                listener.onThought(text);
             }
         }
 
         synchronized void addToolCall(ToolCallEvent event) {
             toolCalls.add(event);
+            listener.onToolCall(event);
         }
 
         synchronized void updateToolCallStatus(String toolCallId, String status) {
@@ -242,6 +260,7 @@ public class AcpAgent {
                 ToolCallEvent existing = toolCalls.get(i);
                 if (existing.toolCallId().equals(toolCallId)) {
                     toolCalls.set(i, new ToolCallEvent(existing.toolCallId(), existing.title(), existing.kind(), status));
+                    listener.onToolCallUpdate(toolCallId, status);
                     return;
                 }
             }
