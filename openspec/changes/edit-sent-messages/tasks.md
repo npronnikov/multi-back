@@ -1,0 +1,57 @@
+# Tasks: Edit Sent Messages
+
+## Phase 1: Frontend — UI Components
+
+- [ ] T001 — Создать компонент EditModal в `front/app/page.tsx` (новый компонент)
+- [ ] T002 — Добавить константы UUID для EditModal и присвоить `data-id` атрибуты:
+  - Container: `data-id="edit-modal-550e8400-e29b-41d4-a716-446655440000"`
+  - Input: `data-id="edit-input-6ba7b810-9dad-11d1-80b4-00c04fd430c8"`
+  - Save: `data-id="edit-save-9bf7e3cf-4dd4-4371-b3c4-68e88d18f7d9"`
+  - Cancel: `data-id="edit-cancel-a0eebc99-9c3b-4b38-9b9a-3a9b9c9d9e9f"`
+- [ ] T003 — Добавить кнопку "Edit" с UUID в TodoItem: `data-id="edit-button-b1c4d2e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e"`
+- [ ] T004 — Добавить `data-id` атрибуты к TodoItem элементам:
+  - Todo text: `data-id="todo-text-c2d5e3f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f"`
+  - Toggle button: `data-id="toggle-button-d3e6f4a7-b8c9-4d0e-1f2a-3b4c5d6e7f8a"`
+  - Delete button: `data-id="delete-button-e4f7a5b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"`
+- [ ] T005 — Реализовать состояние `isEditModalOpen` и `editingTodoId` в главном компоненте
+- [ ] T006 — Добавить функцию `handleEditClick` для открытия EditModal с текущим текстом todo
+- [ ] T007 — Реализовать валидацию текста в EditModal (required, maxlength 500)
+- [ ] T008 — Добавить keyboard navigation в EditModal (Escape для закрытия, Enter для сохранения)
+
+## Phase 2: Frontend — Data Layer
+
+- [ ] T009 — Создать функцию `updateTodo(id, text, completed)` для API вызова
+- [ ] T010 — Реализовать optimistic update в `handleSave`: обновить state немедленно
+- [ ] T011 — Добавить обработку успеха: подтвердить optimistic update после успешного ответа API
+- [ ] T012 — Добавить обработку ошибок: rollback state + show error toast при ошибке API
+- [ ] T013 — Обрабатывать network errors отдельно от server errors (разные сообщения)
+
+## Phase 3: Frontend — Error Handling & UX
+
+- [ ] T014 — Добавить toast notification для error messages ("Failed to save changes", "Network error")
+- [ ] T015 — Реализовать rollback логику: сохранить previous text перед optimistic update
+- [ ] T016 — Добавить обработку 4xx validation errors от сервера (если backend вернёт ошибку валидации)
+- [ ] T017 — Убедиться что фокус возвращается на кнопку "Edit" после закрытия modal
+
+## Phase 4: Accessibility & Polish
+
+- [ ] T018 — Добавить ARIA attributes в EditModal (role="dialog", aria-modal="true", aria-labelledby)
+- [ ] T019 — Реализовать focus trap в EditModal (Tab не уходит за пределы modal)
+- [ ] T020 — Добавить loading indicator (опционально) во время API запроса
+- [ ] T021 — Добавить счётчик символов в EditModal при приближении к лимиту
+
+## Phase 5: Code Quality & Cleanup
+
+- [ ] T022 — Проверить что код следует существующим паттернам (toggle, delete)
+- [ ] T023 — Убрать неиспользуемые imports и переменные
+- [ ] T024 — Добавить комментарии только для неочевидных частей (no narration comments)
+
+## Verification
+
+- [ ] T025 — Запустить frontend сборку: `cd front && npm run build`
+- [ ] T026 — Проверить TypeScript compilation: `cd front && npx tsc --noEmit`
+- [ ] T027 — Запустить frontend тесты (если есть): `cd front && npm run test`
+- [ ] T028 — Проверить linting (если настроен): `cd front && npm run lint`
+- [ ] T029 — Запустить backend сборку: `cd back && ./gradlew build`
+- [ ] T030 — Запустить backend тесты: `cd back && ./gradlew test`
+- [ ] T031 — Проверить Java compilation: `cd back && ./gradlew compileJava`
