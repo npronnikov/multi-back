@@ -29,29 +29,29 @@
 ## Phase 3: Frontend — Error Handling & UX
 
 - [x] T014 — Добавить toast notification для error messages ("Failed to save changes", "Network error")
-- [x] T015 — Реализовать rollback логику: сохранить previous text перед optimistic update
-- [x] T016 — Добавить обработку 4xx validation errors от сервера (если backend вернёт ошибку валидации)
-- [x] T017 — Убедиться что фокус возвращается на кнопку "Edit" после закрытия modal
+- [ ] T015 — Реализовать rollback логику: сохранить previous text перед optimistic update
+- [ ] T016 — Добавить обработку 4xx validation errors от сервера (если backend вернёт ошибку валидации)
+- [ ] T017 — Убедиться что фокус возвращается на кнопку "Edit" после закрытия modal
 
 ## Phase 4: Accessibility & Polish
 
-- [x] T018 — Добавить ARIA attributes в EditModal (role="dialog", aria-modal="true", aria-labelledby)
-- [x] T019 — Реализовать focus trap в EditModal (Tab не уходит за пределы modal)
-- [x] T020 — Добавить loading indicator (опционально) во время API запроса
-- [x] T021 — Добавить счётчик символов в EditModal при приближении к лимиту
+- [ ] T018 — Добавить ARIA attributes в EditModal (role="dialog", aria-modal="true", aria-labelledby)
+- [ ] T019 — Реализовать focus trap в EditModal (Tab не уходит за пределы modal)
+- [ ] T020 — Добавить loading indicator (опционально) во время API запроса
+- [ ] T021 — Добавить счётчик символов в EditModal при приближении к лимиту
 
 ## Phase 5: Code Quality & Cleanup
 
-- [x] T022 — Проверить что код следует существующим паттернам (toggle, delete)
-- [x] T023 — Убрать неиспользуемые imports и переменные
-- [x] T024 — Добавить комментарии только для неочевидных частей (no narration comments)
+- [ ] T022 — Проверить что код следует существующим паттернам (toggle, delete)
+- [ ] T023 — Убрать неиспользуемые imports и переменные
+- [ ] T024 — Добавить комментарии только для неочевидных частей (no narration comments)
 
 ## Verification
 
-- [x] T025 — Запустить frontend сборку: `cd front && npm run build`
-- [x] T026 — Проверить TypeScript compilation: `cd front && npx tsc --noEmit`
-- [x] T027 — Запустить frontend тесты (если есть): `cd front && npm run test`
-- [x] T028 — Проверить linting (если настроен): `cd front && npm run lint`
-- [x] T029 — Запустить backend сборку: `cd back && ./gradlew build`
-- [x] T030 — Запустить backend тесты: `cd back && ./gradlew test`
-- [x] T031 — Проверить Java compilation: `cd back && ./gradlew compileJava`
+- [ ] T025 — Запустить frontend сборку: `cd front && npm run build`
+- [ ] T026 — Проверить TypeScript compilation: `cd front && npx tsc --noEmit`
+- [ ] T027 — Запустить frontend тесты (если есть): `cd front && npm run test`
+- [ ] T028 — Проверить linting (если настроен): `cd front && npm run lint`
+- [ ] T029 — Запустить backend сборку: `cd back && ./gradlew build`
+- [ ] T030 — Запустить backend тесты: `cd back && ./gradlew test`
+- [ ] T031 — Проверить Java compilation: `cd back && ./gradlew compileJava`

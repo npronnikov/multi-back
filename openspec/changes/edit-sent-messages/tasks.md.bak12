@@ -48,10 +48,10 @@
 
 ## Verification
 
-- [x] T025 — Запустить frontend сборку: `cd front && npm run build`
-- [x] T026 — Проверить TypeScript compilation: `cd front && npx tsc --noEmit`
-- [x] T027 — Запустить frontend тесты (если есть): `cd front && npm run test`
-- [x] T028 — Проверить linting (если настроен): `cd front && npm run lint`
-- [x] T029 — Запустить backend сборку: `cd back && ./gradlew build`
-- [x] T030 — Запустить backend тесты: `cd back && ./gradlew test`
-- [x] T031 — Проверить Java compilation: `cd back && ./gradlew compileJava`
+- [ ] T025 — Запустить frontend сборку: `cd front && npm run build`
+- [ ] T026 — Проверить TypeScript compilation: `cd front && npx tsc --noEmit`
+- [ ] T027 — Запустить frontend тесты (если есть): `cd front && npm run test`
+- [ ] T028 — Проверить linting (если настроен): `cd front && npm run lint`
+- [ ] T029 — Запустить backend сборку: `cd back && ./gradlew build`
+- [ ] T030 — Запустить backend тесты: `cd back && ./gradlew test`
+- [ ] T031 — Проверить Java compilation: `cd back && ./gradlew compileJava`
